@@ -184,3 +184,90 @@ def adjust_predictions(pred):
             item.append(b)
         new_pred.append(item)
     return np.array(new_pred)
+
+def bb_intersection_over_union(boxA, boxB):
+    '''
+    Calculate Intersection over union
+    boxA: first bounding box
+    boxB: second bounding box
+    return: iou
+    '''
+    # determine the (x, y)-coordinates of the intersection rectangle
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2] + boxA[0], boxB[2] + boxB[0])
+    yB = min(boxA[3] + boxA[1], boxB[3] + boxB[1])
+
+    # compute the area of intersection rectangle
+    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+ 
+    # compute the area of both the prediction and ground-truth
+    # rectangles
+    boxAArea = boxA[2] * boxA[3]
+    boxBArea = boxB[2] * boxB[3]
+ 
+    # compute the intersection over union by taking the intersection
+    # area and dividing it by the sum of prediction + ground truth areas - the interesection area
+    iou = interArea / float(boxAArea + boxBArea - interArea)
+ 
+    # return the intersection over union value
+    return iou
+
+def get_coordinates(list_items):
+    '''
+    Get just the coordinates from the list
+    list_items: numpy that contains the predicted bounding boxes
+    return: list with just the coordinates of the bounding boxes
+    '''
+    new_list = []
+    for item in list_items:
+        new_item = []
+        for box in item:
+            new_item.append([box[2], box[3], box[4], box[5]])
+        new_list.append(new_item)
+    return new_list
+
+def best_match(square, list_two):
+    '''
+    Finds the best match by itersection over union
+    square: item to compare with all items in list_two
+    list_two: list of bounding boxes
+    return: best iou
+    '''
+    max_iou = 0
+    for bb in list_two:
+        iou = bb_intersection_over_union(square, bb)
+        if iou > max_iou:
+            max_iou = iou
+    return max_iou
+
+def cal_precision(to_eval, to_compare):
+    '''
+    Calculate the precision
+    to_eval: cal precision for this item
+    to_compare: item to compare with
+    return: precision
+    '''
+    sum_iou = 0
+    number_detection = 0
+    for index_pred in range(len(to_eval)):
+        number_detection += len(to_eval[index_pred])
+        for item_to_eval in to_eval[index_pred]:
+            sum_iou += best_match(item_to_eval, to_compare[index_pred])
+    
+    if number_detection == 0:
+        return 0.0
+    return sum_iou / number_detection
+
+def cal_performance(ground_t, pred):
+    '''
+    Calculate presicion, recall and F1 score
+    ground_t: Bounding boxes of ground_t
+    pred: Bounding boxes of prediction
+    return: Presicion, Recall and F1 score
+    '''
+    presicion = cal_precision(pred, ground_t)
+    recall = cal_precision(ground_t, pred)
+    f1_score = (2 * presicion * recall) / (presicion + recall)
+    
+    return presicion, recall, f1_score
