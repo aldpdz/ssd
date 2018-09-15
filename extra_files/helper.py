@@ -110,10 +110,10 @@ def show_image_bb_2(img, bounding_boxs_pred, bounding_boxs_gr):
 
     for item in bounding_boxs_pred:
         # Create a Rectangle patch
-        rect = patches.Rectangle((item[2], item[3]), item[4], item[5], linewidth=3, edgecolor='r', facecolor='none')
+        rect = patches.Rectangle((item[0], item[1]), item[2], item[3], linewidth=3, edgecolor='r', facecolor='none')
         # Add the patch to the Axes
         ax.add_patch(rect)
-        ax.text(item[2], item[3], round(item[1], 4), size='x-large', bbox=dict(facecolor='r', alpha=1))
+        ax.text(item[0], item[1], round(item[1], 4), size='x-large', bbox=dict(facecolor='r', alpha=1))
 
     for item in bounding_boxs_gr:
         # Create a Rectangle patch
@@ -259,7 +259,7 @@ def cal_precision(to_eval, to_compare):
         return 0.0
     return sum_iou / number_detection
 
-def cal_performance(ground_t, pred):
+def cal_performance(ground_t, pred, verborse=True):
     '''
     Calculate presicion, recall and F1 score
     ground_t: Bounding boxes of ground_t
@@ -269,5 +269,11 @@ def cal_performance(ground_t, pred):
     presicion = cal_precision(pred, ground_t)
     recall = cal_precision(ground_t, pred)
     f1_score = (2 * presicion * recall) / (presicion + recall)
+
+    if(verborse):
+    	print('Number of images:', len(ground_t))
+    	print('Presicion:', round(presicion, 4))
+    	print('Recall:', round(recall, 4))
+    	print('F1 score:', round(f1_score, 4))
     
     return presicion, recall, f1_score
