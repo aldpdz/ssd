@@ -100,8 +100,8 @@ def show_image_bb_2(img, bounding_boxs_pred, bounding_boxs_gr):
     '''
     Show image and its bounding boxes
     img: image
-    bounding_boxs_pred: bounding boxes from prediction
-    bounding_boxs_gr: ground true bounding boxes
+    bounding_boxs_pred: bounding boxes from prediction x, y, width, height
+    bounding_boxs_gr: ground true bounding boxes x, y, width, height, confidence
     '''
     # Create figure and axes
     fig, ax = plt.subplots(1, figsize=(12, 12))
@@ -113,7 +113,7 @@ def show_image_bb_2(img, bounding_boxs_pred, bounding_boxs_gr):
         rect = patches.Rectangle((item[0], item[1]), item[2], item[3], linewidth=3, edgecolor='r', facecolor='none')
         # Add the patch to the Axes
         ax.add_patch(rect)
-        ax.text(item[0], item[1], round(item[1], 4), size='x-large', bbox=dict(facecolor='r', alpha=1))
+        ax.text(item[0], item[1], round(item[4], 4), size='x-large', bbox=dict(facecolor='r', alpha=1))
 
     for item in bounding_boxs_gr:
         # Create a Rectangle patch
@@ -203,8 +203,8 @@ def bb_intersection_over_union(boxA, boxB):
  
     # compute the area of both the prediction and ground-truth
     # rectangles
-    boxAArea = boxA[2] * boxA[3]
-    boxBArea = boxB[2] * boxB[3]
+    boxAArea = (boxA[2] + 1) * (boxA[3] + 1)
+    boxBArea = (boxB[2] + 1) * (boxB[3] + 1)
  
     # compute the intersection over union by taking the intersection
     # area and dividing it by the sum of prediction + ground truth areas - the interesection area
@@ -254,7 +254,6 @@ def cal_precision(to_eval, to_compare):
         number_detection += len(to_eval[index_pred])
         for item_to_eval in to_eval[index_pred]:
             sum_iou += best_match(item_to_eval, to_compare[index_pred])
-    
     if number_detection == 0:
         return 0.0
     return sum_iou / number_detection
