@@ -426,7 +426,8 @@ def ssd_300(image_size,
                                                top_k=top_k,
                                                nms_max_output_size=nms_max_output_size,
                                                coords=coords,
-                                               normalize_coords=normalize_coords,
+                                               #normalize_coords=normalize_coords, change this parameter for inference
+                                               normalize_coords=False,
                                                img_height=img_height,
                                                img_width=img_width,
                                                name='decoded_predictions')(predictions)

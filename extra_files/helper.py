@@ -5,6 +5,32 @@ import matplotlib.patches as patches
 import os
 
 from scipy import misc
+from imageio import imwrite, imread
+
+
+def save_images_to(path_from, path_to, list_img_names):
+	'''
+	Save images into a path
+	path_from: path where to load the images
+	path_to: path where to save the images
+	list_img_names: list of string with the name's images
+	'''
+	for name_img in list_img_names:
+		# Read image
+		img = imread(path_from + '/' + name_img)
+		imwrite(path_to + '/' + name_img, img)
+
+def create_sub_dict(original_dict, list_keys):
+	'''
+	Creat a new dictionary from another one
+	original_dict: original dictionary
+	list_keys: list of string that containts the keys
+	return: sub dictionary
+	'''
+	new_dict = {}
+	for key in list_keys:
+		new_dict[key] = original_dict[key]
+	return new_dict
 
 
 def load_images_labels(path, dict_json):
@@ -18,7 +44,7 @@ def load_images_labels(path, dict_json):
     labels = []
     for image in os.listdir(path):
         # Read image
-        img = misc.imread(path + image)
+        img = misc.imread(path + '/' + image)
         images.append(img)
         
         # Get data from json file
@@ -71,6 +97,7 @@ def resize_images(list_image, width, height):
     list_image: numpy array of images
     width: new width
     height: new height
+    return: numpy image
     '''
     return np.array([misc.imresize(img, size=(width, height)) for img in list_image])
 
@@ -96,7 +123,7 @@ def show_image_bb(img, bounding_boxs):
         
     plt.show()
 
-def show_image_bb_2(img, bounding_boxs_pred, bounding_boxs_gr):
+def show_image_bb_2(img, bounding_boxs_pred = [], bounding_boxs_gr = [], confidence = False):
     '''
     Show image and its bounding boxes
     img: image
@@ -108,18 +135,21 @@ def show_image_bb_2(img, bounding_boxs_pred, bounding_boxs_gr):
     # Display the image
     ax.imshow(img)
 
-    for item in bounding_boxs_pred:
-        # Create a Rectangle patch
-        rect = patches.Rectangle((item[0], item[1]), item[2], item[3], linewidth=3, edgecolor='r', facecolor='none')
-        # Add the patch to the Axes
-        ax.add_patch(rect)
-        ax.text(item[0], item[1], round(item[4], 4), size='x-large', bbox=dict(facecolor='r', alpha=1))
+    if len(bounding_boxs_pred) > 0:
+        for item in bounding_boxs_pred:
+            # Create a Rectangle patch
+            rect = patches.Rectangle((item[0], item[1]), item[2], item[3], linewidth=3, edgecolor='r', facecolor='none')
+            # Add the patch to the Axes
+            ax.add_patch(rect)
+            if confidence:
+                ax.text(item[0], item[1], round(item[4], 4), size='x-large', bbox=dict(facecolor='r', alpha=1))
 
-    for item in bounding_boxs_gr:
-        # Create a Rectangle patch
-        rect = patches.Rectangle((item[0], item[1]), item[2], item[3], linewidth=3, edgecolor='b', facecolor='none')
-        # Add the patch to the Axes
-        ax.add_patch(rect)
+    if len(bounding_boxs_gr) > 0:
+        for item in bounding_boxs_gr:
+            # Create a Rectangle patch
+            rect = patches.Rectangle((item[0], item[1]), item[2], item[3], linewidth=3, edgecolor='b', facecolor='none')
+            # Add the patch to the Axes
+            ax.add_patch(rect)
         
     plt.show()
 
@@ -179,6 +209,7 @@ def adjust_predictions(pred):
     for i in pred:
         item = []
         for box in i:
+        	# Convert corners to width and height
             b = [box[0], box[1], box[2], box[3], box[4] - box[2], box[5] - box[3]]
             b = np.array(b)
             item.append(b)
@@ -199,12 +230,12 @@ def bb_intersection_over_union(boxA, boxB):
     yB = min(boxA[3] + boxA[1], boxB[3] + boxB[1])
 
     # compute the area of intersection rectangle
-    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+    interArea = max(0, xB - xA) * max(0, yB - yA)
  
     # compute the area of both the prediction and ground-truth
     # rectangles
-    boxAArea = (boxA[2] + 1) * (boxA[3] + 1)
-    boxBArea = (boxB[2] + 1) * (boxB[3] + 1)
+    boxAArea = boxA[2] * boxA[3]
+    boxBArea = boxB[2] * boxB[3]
  
     # compute the intersection over union by taking the intersection
     # area and dividing it by the sum of prediction + ground truth areas - the interesection area
@@ -267,7 +298,11 @@ def cal_performance(ground_t, pred, verborse=True):
     '''
     presicion = cal_precision(pred, ground_t)
     recall = cal_precision(ground_t, pred)
-    f1_score = (2 * presicion * recall) / (presicion + recall)
+
+    if (presicion + recall) > 0:
+        f1_score = (2 * presicion * recall) / (presicion + recall)
+    else:
+    	f1_score = 0.0
 
     if(verborse):
     	print('Number of images:', len(ground_t))
