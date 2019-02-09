@@ -186,7 +186,7 @@ def get_batch(batch_size, features):
         end_i = start_i + batch_size
         yield features[start_i:end_i]
     
-def clean_predictions(pred, id_class=15):
+def clean_predictions(pred):
     '''
     Keep just prediction with id 15 (person)
     pred: list of predictions
@@ -195,7 +195,7 @@ def clean_predictions(pred, id_class=15):
     for p in pred:
         box = []
         for item in p:
-            if item[0] == id_class:
+            if item[0] == 15:
                 box.append(item)
         new_pred.append(box)
     return np.array(new_pred)
