@@ -217,9 +217,9 @@ class DecodeDetections(Layer):
 
             # Iterate `filter_single_class()` over all class indices.
             filtered_single_classes = tf.map_fn(fn=lambda i: filter_single_class(i),
-                                                elems=tf.range(1,n_classes),
+#                                                 elems=tf.range(1,n_classes),
 #                                                 elems=tf.range(15, 16),
-#                                                 elems=tf.range(1, 2),
+                                                elems=tf.range(1, 2),
                                                 dtype=tf.float32,
                                                 parallel_iterations=128,
                                                 back_prop=False,
