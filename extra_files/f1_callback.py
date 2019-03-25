@@ -2,10 +2,11 @@ import keras
 import extra_files.helper as hp
 import numpy as np
 from ssd_encoder_decoder.ssd_output_decoder import decode_detections
+import pandas as pd
 
 class F1_callback(keras.callbacks.Callback):
 
-    def __init__(self, confidence, iou, top_k, normalize_coords, height, width, data, label):
+    def __init__(self, confidence, iou, top_k, normalize_coords, height, width, data, label, output_shape, path_csv, path_save):
         super(F1_callback, self).__init__()
         self.confidence = confidence
         self.iou = iou
@@ -16,6 +17,10 @@ class F1_callback(keras.callbacks.Callback):
         self.best_f1 = float("-inf")
         self.data = data
         self.label = label
+        self.output_shape = output_shape
+        self.path_csv = path_csv
+        self.path_save = path_save
+        self.history = []
 
     def set_model(self, model):
         self.model = model
@@ -25,7 +30,7 @@ class F1_callback(keras.callbacks.Callback):
         
         # Make predictions
         # Create variable to store predictions
-        predictions = np.zeros(shape=(1, 2268, 14))
+        predictions = np.zeros(shape=self.output_shape)
     
         for batch in hp.get_batch(32, self.data):
             pred = self.model.predict(batch)
@@ -54,9 +59,17 @@ class F1_callback(keras.callbacks.Callback):
         pred_decod = aux_decod
 
         # Calculate performance
-        presicion, recall, f1_score = hp.cal_performance(self.label, pred_decod)
+        presicion, recall, f1_score = hp.cal_performance(self.label, pred_decod, verborse=False)
+        print('F1 score:', f1_score)
         
+        self.history.append([epoch, presicion, recall, f1_score])
+        
+        # save file
+        history_f1 = pd.DataFrame(self.history, columns=['epoch', 'presicion', 'recall', 'f1 score'])
+        history_f1.to_csv(self.path_csv, index=False)
+                
         if f1_score > self.best_f1:
             # Save model
             print('Improve F1 score from', self.best_f1, 'to', f1_score)
             self.best_f1 = f1_score
+            self.model.save(self.path_save)

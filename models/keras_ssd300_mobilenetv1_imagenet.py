@@ -322,10 +322,10 @@ def ssd_300(image_size,
 
     # The following identity layer is only needed so that the subsequent lambda layers can be optional.
     x1 = Lambda(identity_layer, output_shape=(img_height, img_width, img_channels), name='identity_layer')(x)
-    if not (subtract_mean is None):
-        x1 = Lambda(input_mean_normalization, output_shape=(img_height, img_width, img_channels), name='input_mean_normalization')(x1)
     if not (divide_by_stddev is None):
         x1 = Lambda(input_stddev_normalization, output_shape=(img_height, img_width, img_channels), name='input_stddev_normalization')(x1)
+    if not (subtract_mean is None):
+        x1 = Lambda(input_mean_normalization, output_shape=(img_height, img_width, img_channels), name='input_mean_normalization')(x1)
     if swap_channels:
         x1 = Lambda(input_channel_swap, output_shape=(img_height, img_width, img_channels), name='input_channel_swap')(x1)
 
@@ -336,9 +336,9 @@ def ssd_300(image_size,
 
     layer = FeatureExtractor(x1)
     layer, conv11 =_conv_blockSSD_f(layer, 512, depth_multiplier,kernel=(1, 1), strides=(1, 1),block_id=11)
-    layer = _depthwise_conv_block(layer, 512, alpha, depth_multiplier,strides=(2, 2), block_id=12)
+    layer = _depthwise_conv_block(layer, 1024, alpha, depth_multiplier,strides=(2, 2), block_id=12)
     layer = _depthwise_conv_block_f(layer, depth_multiplier,strides=(1, 1), block_id=13)
-    layer, conv13 = _conv_blockSSD_f(layer, 512, alpha, kernel=(1, 1), strides=(1, 1), block_id=13)
+    layer, conv13 = _conv_blockSSD_f(layer, 1024, alpha, kernel=(1, 1), strides=(1, 1), block_id=13)
     layer, conv14_2 = _conv_blockSSD(layer, 256, alpha, block_id=14)
     layer, conv15_2 = _conv_blockSSD(layer, 128, alpha, block_id=15)
     layer, conv16_2 = _conv_blockSSD(layer, 128, alpha, block_id=16)
@@ -458,8 +458,8 @@ def ssd_300(image_size,
                                                top_k=top_k,
                                                nms_max_output_size=nms_max_output_size,
                                                coords=coords,
-                                               normalize_coords=normalize_coords, #change this parameter for inference
-#                                                normalize_coords=False,
+#                                                normalize_coords=normalize_coords, #change this parameter for inference
+                                               normalize_coords=False,
                                                img_height=img_height,
                                                img_width=img_width,
                                                name='decoded_predictions')(predictions)
