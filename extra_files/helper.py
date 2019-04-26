@@ -272,7 +272,7 @@ def best_match(square, list_two):
             max_iou = iou
     return max_iou
 
-def cal_precision(to_eval, to_compare):
+def cal_precision(to_eval, to_compare, iou):
     '''
     Calculate the precision
     to_eval: cal precision for this item
@@ -284,20 +284,27 @@ def cal_precision(to_eval, to_compare):
     for index_pred in range(len(to_eval)):
         number_detection += len(to_eval[index_pred])
         for item_to_eval in to_eval[index_pred]:
-            sum_iou += best_match(item_to_eval, to_compare[index_pred])
+            best_iou = best_match(item_to_eval, to_compare[index_pred])
+            if iou != None:
+                if best_iou > iou:
+                    best_iou = 1
+                else:
+                    best_iou = 0
+            sum_iou += best_iou
+            
     if number_detection == 0:
         return 0.0
     return sum_iou / number_detection
 
-def cal_performance(ground_t, pred, verborse=True):
+def cal_performance(ground_t, pred, verborse=True, iou=None):
     '''
     Calculate presicion, recall and F1 score
     ground_t: Bounding boxes of ground_t
     pred: Bounding boxes of prediction
     return: Presicion, Recall and F1 score
     '''
-    presicion = cal_precision(pred, ground_t)
-    recall = cal_precision(ground_t, pred)
+    presicion = cal_precision(pred, ground_t, iou)
+    recall = cal_precision(ground_t, pred, iou)
 
     if (presicion + recall) > 0:
         f1_score = (2 * presicion * recall) / (presicion + recall)
