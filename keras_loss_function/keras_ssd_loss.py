@@ -93,6 +93,12 @@ class SSDLoss:
         y_pred = tf.maximum(y_pred, 1e-15)
         # Compute the log loss
         log_loss = -tf.reduce_sum(y_true * tf.log(y_pred), axis=-1)
+
+        #ce = tf.multiply(y_true, -tf.log(y_pred))
+        #weight = tf.multiply(y_true, tf.pow(tf.subtract(1., y_pred), 2.0))
+        #fl = tf.multiply(0.25, tf.multiply(weight, ce))
+        #log_loss = tf.reduce_sum(fl, axis=-1)
+
         return log_loss
 
     def compute_loss(self, y_true, y_pred):
@@ -164,6 +170,7 @@ class SSDLoss:
         # Compute the number of negative examples we want to account for in the loss.
         # We'll keep at most `self.neg_pos_ratio` times the number of positives in `y_true`, but at least `self.n_neg_min` (unless `n_neg_loses` is smaller).
         n_negative_keep = tf.minimum(tf.maximum(self.neg_pos_ratio * tf.to_int32(n_positive), self.n_neg_min), n_neg_losses)
+        #n_negative_keep = n_neg_losses
 
         # In the unlikely case when either (1) there are no negative ground truth boxes at all
         # or (2) the classification loss for all negative boxes is zero, return zero as the `neg_class_loss`.

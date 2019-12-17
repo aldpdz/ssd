@@ -23,6 +23,7 @@ import tensorflow as tf
 import keras.backend as K
 from keras.engine.topology import InputSpec
 from keras.engine.topology import Layer
+from tensorflow.python.ops import gen_image_ops
 
 class DecodeDetections(Layer):
     '''
@@ -192,11 +193,16 @@ class DecodeDetections(Layer):
                     ymax = tf.expand_dims(single_class[...,-1], axis=-1)
                     boxes = tf.concat(values=[ymin, xmin, ymax, xmax], axis=-1)
 
-                    maxima_indices = tf.image.non_max_suppression(boxes=boxes,
+                    maxima_indices = gen_image_ops.non_max_suppression_v2(boxes=boxes,
                                                                   scores=scores,
                                                                   max_output_size=self.tf_nms_max_output_size,
                                                                   iou_threshold=self.iou_threshold,
                                                                   name='non_maximum_suppresion')
+                    # maxima_indices = tf.image.non_max_suppression(boxes=boxes,
+                    #                                               scores=scores,
+                    #                                               max_output_size=self.tf_nms_max_output_size,
+                    #                                               iou_threshold=self.iou_threshold,
+                    #                                               name='non_maximum_suppresion')
                     maxima = tf.gather(params=single_class,
                                        indices=maxima_indices,
                                        axis=0)

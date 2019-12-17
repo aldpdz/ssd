@@ -24,16 +24,17 @@ from keras.layers import DepthwiseConv2D
 import keras.backend as K
 
 from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
-from keras_layers.keras_layer_L2Normalization import L2Normalization
 from keras_layers.keras_layer_DecodeDetections import DecodeDetections
 from keras_layers.keras_layer_DecodeDetectionsFast import DecodeDetectionsFast
 
+from keras.applications import MobileNet
+
 def ssd_300(image_size,
             n_classes,
+            input_tensor = None,
             mode='training',
             alpha=1.0,
             depth_multiplier = 1,
-            l2_regularization=0.0005,
             min_scale=None,
             max_scale=None,
             scales=None,
@@ -79,6 +80,7 @@ def ssd_300(image_size,
 
     Arguments:
         image_size (tuple): The input image size in the format `(height, width, channels)`.
+        input_tensor: Tensor with shape (batch, height, width, channels)
         n_classes (int): The number of positive classes, e.g. 20 for Pascal VOC, 80 for MS COCO.
         mode (str, optional): One of 'training', 'inference' and 'inference_fast'. In 'training' mode,
             the model outputs the raw prediction tensor, while in 'inference' and 'inference_fast' modes,
@@ -86,8 +88,6 @@ def ssd_300(image_size,
             non-maximum suppression, and top-k filtering. The difference between latter two modes is that
             'inference' follows the exact procedure of the original Caffe implementation, while
             'inference_fast' uses a faster prediction decoding procedure.
-        l2_regularization (float, optional): The L2-regularization rate. Applies to all convolutional layers.
-            Set to zero to deactivate L2-regularization.
         min_scale (float, optional): The smallest scaling factor for the size of the anchor boxes as a fraction
             of the shorter side of the input images.
         max_scale (float, optional): The largest scaling factor for the size of the anchor boxes as a fraction
@@ -175,7 +175,6 @@ def ssd_300(image_size,
 
     n_predictor_layers = 6 # The number of predictor conv layers in the network is 6 for the original SSD300.
     n_classes += 1 # Account for the background class.
-    l2_reg = l2_regularization # Make the internal name shorter.
     img_height, img_width, img_channels = image_size[0], image_size[1], image_size[2]
 
     ############################################################################
@@ -293,16 +292,16 @@ def ssd_300(image_size,
     	x = BatchNormalization(axis=channel_axis, name='conv_dw_%d_bn' % block_id)(x)
     	return Activation(relu6, name='conv_dw_%d_relu' % block_id)(x)
 
-    def _conv_blockSSD_f(inputs, filters, alpha, kernel, strides,block_id=11):
+    def _conv_blockSSD_f(inputs, filters, alpha, kernel, strides,block_id=11, apply_alpha=True):
+    	if apply_alpha:
+    		filters = int(filters * alpha)
     	channel_axis = -1
-    	filters = int(filters * alpha)
     	Conv = Conv2D(filters, kernel,padding='valid',use_bias=False,strides=strides,name='conv__%d' % block_id)(inputs)
     	x = BatchNormalization(axis=channel_axis, name='conv_%d_bn' % block_id)(Conv)
     	return Activation(relu6, name='conv_%d_relu' % block_id)(x), Conv
 
-    def _conv_blockSSD(inputs, filters, alpha,block_id=11):
+    def _conv_blockSSD(inputs, filters,block_id=11):
     	channel_axis = -1
-    	filters = int(filters * alpha)
     	x = ZeroPadding2D(padding=(1, 1), name='conv_pad_%d_1' % block_id)(inputs)
     	x = Conv2D(filters, (1,1),padding='valid',use_bias=False,strides=(1, 1),name='conv__%d_1'%block_id)(x)
     	x = BatchNormalization(axis=channel_axis, name='conv_%d_bn_1'% block_id)(x)
@@ -316,37 +315,34 @@ def ssd_300(image_size,
     # Build the network.
     ############################################################################
 
-    x = Input(shape=(img_height, img_width, img_channels))
+    if input_tensor != None:
+        x = Input(tensor=input_tensor, shape=(img_height, img_width, img_channels))
+    else:
+        x = Input(shape=(img_height, img_width, img_channels))
 
     # The following identity layer is only needed so that the subsequent lambda layers can be optional.
     x1 = Lambda(identity_layer, output_shape=(img_height, img_width, img_channels), name='identity_layer')(x)
-    if not (subtract_mean is None):
-        x1 = Lambda(input_mean_normalization, output_shape=(img_height, img_width, img_channels), name='input_mean_normalization')(x1)
     if not (divide_by_stddev is None):
         x1 = Lambda(input_stddev_normalization, output_shape=(img_height, img_width, img_channels), name='input_stddev_normalization')(x1)
+    if not (subtract_mean is None):
+        x1 = Lambda(input_mean_normalization, output_shape=(img_height, img_width, img_channels), name='input_mean_normalization')(x1)
     if swap_channels:
         x1 = Lambda(input_channel_swap, output_shape=(img_height, img_width, img_channels), name='input_channel_swap')(x1)
 
-    layer = _conv_block(x1, 32, alpha, strides=(2, 2))
-    layer = _depthwise_conv_block(layer, 64, alpha, depth_multiplier, block_id=1)
-    layer = _depthwise_conv_block(layer, 128, alpha, depth_multiplier,strides=(2, 2), block_id=2)
-    layer = _depthwise_conv_block(layer, 128, alpha, depth_multiplier, block_id=3)
-    layer = _depthwise_conv_block(layer, 256, alpha, depth_multiplier,strides=(2, 2), block_id=4)
-    layer = _depthwise_conv_block(layer, 256, alpha, depth_multiplier, block_id=5)
-    layer = _depthwise_conv_block(layer, 512, alpha, depth_multiplier, strides=(2, 2), block_id=6)
-    layer = _depthwise_conv_block(layer, 512, alpha, depth_multiplier, block_id=7)
-    layer = _depthwise_conv_block(layer, 512, alpha, depth_multiplier, block_id=8)
-    layer = _depthwise_conv_block(layer, 512, alpha, depth_multiplier, block_id=9)
-    layer = _depthwise_conv_block(layer, 512, alpha, depth_multiplier, block_id=10)
-    layer = _depthwise_conv_block_f(layer, depth_multiplier,strides=(1, 1), block_id=11)
-    layer, conv11 =_conv_blockSSD_f(layer,512,depth_multiplier,kernel=(1, 1), strides=(1, 1),block_id=11)
-    layer = _depthwise_conv_block(layer, 1024, alpha, depth_multiplier,strides=(2, 2), block_id=12)
+    # Get mobilenet architecture with imagenet weights
+    mobilenet_input_shape = (224, 224, 3)
+    mobilenet = MobileNet(input_shape=mobilenet_input_shape, include_top=False, weights=None, alpha=alpha)
+    FeatureExtractor = Model(inputs=mobilenet.input, outputs=mobilenet.get_layer('conv_dw_11_relu').output)
+
+    layer = FeatureExtractor(x1)
+    layer, conv11 =_conv_blockSSD_f(layer, 512, alpha, kernel=(1, 1), strides=(1, 1),block_id=11)
+    layer = _depthwise_conv_block(layer, 512, alpha, depth_multiplier,strides=(2, 2), block_id=12)
     layer = _depthwise_conv_block_f(layer, depth_multiplier,strides=(1, 1), block_id=13)
-    layer, conv13 = _conv_blockSSD_f(layer, 1024, alpha, kernel=(1, 1), strides=(1, 1), block_id=13)
-    layer, conv14_2 = _conv_blockSSD(layer, 256, alpha, block_id=14)
-    layer, conv15_2 = _conv_blockSSD(layer, 128, alpha, block_id=15)
-    layer, conv16_2 = _conv_blockSSD(layer, 128, alpha, block_id=16)
-    layer, conv17_2 = _conv_blockSSD(layer, 64, alpha, block_id=17)
+    layer, conv13 = _conv_blockSSD_f(layer, 1024, alpha, kernel=(1, 1), strides=(1, 1), block_id=13, apply_alpha=True)
+    layer, conv14_2 = _conv_blockSSD(layer, 256, block_id=14)
+    layer, conv15_2 = _conv_blockSSD(layer, 128, block_id=15)
+    layer, conv16_2 = _conv_blockSSD(layer, 128, block_id=16)
+    layer, conv17_2 = _conv_blockSSD(layer, 64, block_id=17)
 
     ### Build the convolutional predictor layers on top of the base network
 
@@ -462,8 +458,7 @@ def ssd_300(image_size,
                                                top_k=top_k,
                                                nms_max_output_size=nms_max_output_size,
                                                coords=coords,
-#                                                normalize_coords=normalize_coords, #change this parameter for inference
-                                               normalize_coords=False,
+                                               normalize_coords=normalize_coords,
                                                img_height=img_height,
                                                img_width=img_width,
                                                name='decoded_predictions')(predictions)

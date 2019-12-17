@@ -281,8 +281,11 @@ def cal_precision(to_eval, to_compare, iou):
     '''
     sum_iou = 0
     number_detection = 0
+    # Iter over to_eval list
     for index_pred in range(len(to_eval)):
+        # Number of detections on the item
         number_detection += len(to_eval[index_pred])
+        # Iter each bounding box
         for item_to_eval in to_eval[index_pred]:
             best_iou = best_match(item_to_eval, to_compare[index_pred])
             if iou != None:
