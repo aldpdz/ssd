@@ -14,14 +14,14 @@
 This is a Keras port of the SSD model architecture introduced by Wei Liu et al. in the paper [SSD: Single Shot MultiBox Detector](https://arxiv.org/abs/1512.02325).
 
 This repository provides an extension from https://github.com/pierluigiferrari/ssd_keras adding new features stractors and a new network architecture for detection. All architectures where trained for pedestrian detection using PASCAL VOC 2007 and 2012.
-Currently this implementation contains the following feature stractors:
+Currently this implementation contains the following feature extractors:
 - Mobilenetv1
 - Mobilenetv2
 - Shufflenetv1
 - Shufflenetv2
 - Squeezenet
 
-SSD/NoShuffleSE uses a reduce version of the Shufflenetv2 architecture and Squeeze and Excitations units.
+SSD/NoShuffleSE uses a reduced version of the Shufflenetv2 architecture and Squeeze and Excitations units.
 The reduce versión of the Shufflenetv2 architecture is shown below.
 The Squeeze and Excitations units are applied after a 1x1 Conv.
 
